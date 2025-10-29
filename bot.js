@@ -107,33 +107,46 @@ client.on('guildMemberAdd', async (member) => {
     // Call the webhook to assign roles (even without invite code)
     console.log(`📡 Calling API to assign roles...`);
     console.log(`   URL: ${API_URL}/api/discord/webhook`);
-    const response = await fetch(`${API_URL}/api/discord/webhook`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Discord-Signature': DISCORD_WEBHOOK_SECRET,
-      },
-      body: JSON.stringify({
-        event: 'member_join',
-        user_id: member.id,
-        username: member.user.tag,
-        invite_code: inviteCode,
-        guild_id: guild.id,
-      }),
-    });
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ API error (${response.status}): ${errorText}`);
-      return;
-    }
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(`${API_URL}/api/discord/webhook`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Discord-Signature': DISCORD_WEBHOOK_SECRET,
+        },
+        body: JSON.stringify({
+          event: 'member_join',
+          user_id: member.id,
+          username: member.user.tag,
+          invite_code: inviteCode,
+          guild_id: guild.id,
+        }),
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ API error (${response.status}): ${errorText}`);
+        return;
+      }
     
-    const data = await response.json();
-    
-    if (data.success) {
-      console.log(`✅ Roles assigned successfully!`);
-    } else {
-      console.error(`❌ Failed to assign roles: ${data.error}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log(`✅ Roles assigned successfully!`);
+      } else {
+        console.error(`❌ Failed to assign roles: ${data.error}`);
+      }
+    } catch (fetchError) {
+      if (fetchError.name === 'AbortError') {
+        console.error('❌ API request timed out after 10 seconds');
+      } else {
+        console.error(`❌ Failed to call webhook: ${fetchError.message}`);
+      }
     }
   } catch (error) {
     console.error('❌ Error handling member join:', error.message);
