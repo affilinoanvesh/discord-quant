@@ -74,6 +74,7 @@ client.on('guildMemberAdd', async (member) => {
     // First check for new invites not in cache
     for (const [code, invite] of newInvites) {
       if (!invites.has(code)) {
+        console.log(`   New invite found: ${code}`);
         invites.set(code, invite.uses || 0);
         usedInvite = invite;
         break;
@@ -87,6 +88,7 @@ client.on('guildMemberAdd', async (member) => {
         const currentUses = invite.uses || 0;
         
         if (currentUses > oldUses) {
+          console.log(`   Invite used: ${code} (${oldUses} → ${currentUses})`);
           usedInvite = invite;
           invites.set(code, currentUses);
           break;
@@ -198,9 +200,16 @@ async function refreshInviteCache() {
     const guild = client.guilds.cache.get(DISCORD_GUILD_ID);
     if (guild) {
       const guildInvites = await guild.invites.fetch();
+      let newCount = 0;
       guildInvites.forEach(invite => {
+        if (!invites.has(invite.code)) {
+          newCount++;
+        }
         invites.set(invite.code, invite.uses || 0);
       });
+      if (newCount > 0) {
+        console.log(`   Found ${newCount} new invite(s)`);
+      }
       return { success: true };
     }
   } catch (error) {
