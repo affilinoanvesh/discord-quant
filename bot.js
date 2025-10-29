@@ -227,6 +227,7 @@ async function refreshInviteCache() {
 }
 
 // Periodically refresh invite cache (every 5 minutes as backup)
+// Instant refresh happens via HTTP endpoint when dashboard creates invite
 setInterval(refreshInviteCache, 300000);
 
 // HTTP server to trigger cache refresh
