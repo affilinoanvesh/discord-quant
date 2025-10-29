@@ -236,7 +236,7 @@ app.use(express.json());
 
 app.post('/refresh-cache', (req, res) => {
   const secret = req.headers['x-refresh-secret'];
-  if (secret !== process.env.REFRESH_SECRET) {
+  if (secret !== DISCORD_WEBHOOK_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   
