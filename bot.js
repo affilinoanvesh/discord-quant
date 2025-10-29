@@ -10,6 +10,7 @@
 
 import { Client, GatewayIntentBits } from 'discord.js';
 import fetch from 'node-fetch';
+import express from 'express';
 import 'dotenv/config';
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
@@ -224,7 +225,6 @@ async function refreshInviteCache() {
 setInterval(refreshInviteCache, 300000);
 
 // HTTP server to trigger cache refresh
-import express from 'express';
 const app = express();
 app.use(express.json());
 
