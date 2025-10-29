@@ -32,9 +32,6 @@ const invites = new Map();
 
 client.once('ready', async () => {
   console.log(`✅ Bot logged in as ${client.user.tag}`);
-  console.log(`📊 Monitoring Guild ID: ${DISCORD_GUILD_ID}`);
-  console.log(`🌐 API URL: ${API_URL}`);
-  console.log(`🔐 Webhook Secret: ${DISCORD_WEBHOOK_SECRET ? 'SET' : 'NOT SET'}`);
   
   // Cache all existing invites
   try {
@@ -48,12 +45,9 @@ client.once('ready', async () => {
       return;
     }
     
-    console.log(`✅ Found guild: ${guild.name}`);
-    
     const guildInvites = await guild.invites.fetch();
     guildInvites.forEach(invite => {
       invites.set(invite.code, invite.uses || 0);
-      console.log(`   📌 ${invite.code}: ${invite.uses || 0} uses (max: ${invite.maxUses || '∞'})`);
     });
     console.log(`🔗 Cached ${guildInvites.size} invites`);
   } catch (error) {
@@ -68,25 +62,20 @@ client.once('ready', async () => {
 
 // Handle new member joins
 client.on('guildMemberAdd', async (member) => {
-  console.log(`\n👤 New member joined: ${member.user.tag} (${member.id})`);
+  console.log(`👤 New member joined: ${member.user.tag}`);
   
   try {
     const guild = member.guild;
-    
-    // Fetch current invites
     const newInvites = await guild.invites.fetch();
     
     // Find which invite was used
     let usedInvite = null;
-    console.log(`🔍 Comparing ${invites.size} cached invites with ${newInvites.size} current invites...`);
     
     // First check for new invites not in cache
     for (const [code, invite] of newInvites) {
       if (!invites.has(code)) {
-        console.log(`   🆕 NEW INVITE FOUND: ${code} (${invite.uses} uses, max: ${invite.maxUses || '∞'})`);
         invites.set(code, invite.uses || 0);
-        usedInvite = invite; // This is the invite they used!
-        console.log(`   ✅ Using new invite: ${code}`);
+        usedInvite = invite;
         break;
       }
     }
@@ -97,11 +86,8 @@ client.on('guildMemberAdd', async (member) => {
         const oldUses = invites.get(code) || 0;
         const currentUses = invite.uses || 0;
         
-        console.log(`   ${code}: ${oldUses} → ${currentUses} uses`);
-        
         if (currentUses > oldUses) {
           usedInvite = invite;
-          console.log(`   ✅ MATCH: ${code} increased from ${oldUses} to ${currentUses}`);
           invites.set(code, currentUses);
           break;
         }
@@ -117,16 +103,7 @@ client.on('guildMemberAdd', async (member) => {
     
     if (!usedInvite) {
       console.log('⚠️  Could not determine which invite was used');
-      console.log('   This can happen with vanity URLs or if bot wasn\'t caching invites');
-      console.log('   Will still notify API but without invite code');
-    } else {
-      console.log(`🎫 Used invite code: ${inviteCode}`);
-      console.log(`   Created by: ${usedInvite.inviter?.tag || 'Unknown'}`);
     }
-    
-    // Call the webhook to assign roles (even without invite code)
-    console.log(`📡 Calling API to assign roles...`);
-    console.log(`   URL: ${API_URL}/api/discord/webhook`);
     
     try {
       const controller = new AbortController();
@@ -157,9 +134,9 @@ client.on('guildMemberAdd', async (member) => {
       const data = await response.json();
       
       if (data.success) {
-        console.log(`✅ Roles assigned successfully!`);
+        console.log(`✅ Roles assigned successfully`);
       } else {
-        console.error(`❌ Failed to assign roles: ${data.error}`);
+        console.error(`❌ Failed to assign roles`);
       }
     } catch (fetchError) {
       if (fetchError.name === 'AbortError') {
@@ -175,7 +152,7 @@ client.on('guildMemberAdd', async (member) => {
 
 // Handle member leaves
 client.on('guildMemberRemove', async (member) => {
-  console.log(`\n👋 Member left: ${member.user.tag} (${member.id})`);
+  console.log(`👋 Member left: ${member.user.tag}`);
   
   try {
     // Notify API that user left
@@ -221,18 +198,10 @@ async function refreshInviteCache() {
     const guild = client.guilds.cache.get(DISCORD_GUILD_ID);
     if (guild) {
       const guildInvites = await guild.invites.fetch();
-      let newCount = 0;
       guildInvites.forEach(invite => {
-        if (!invites.has(invite.code)) {
-          newCount++;
-          console.log(`🆕 Found new invite: ${invite.code}`);
-        }
         invites.set(invite.code, invite.uses || 0);
       });
-      if (newCount > 0) {
-        console.log(`🔄 Cache refreshed: ${newCount} new invites found`);
-      }
-      return { success: true, newCount };
+      return { success: true };
     }
   } catch (error) {
     console.error('Error refreshing invite cache:', error.message);
@@ -254,7 +223,7 @@ app.post('/refresh-cache', (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   
-  console.log('🔄 Manual cache refresh triggered');
+  console.log('Refreshing invite cache');
   refreshInviteCache().then(result => {
     res.json(result);
   });
