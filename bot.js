@@ -195,6 +195,29 @@ client.on('inviteDelete', async (invite) => {
   console.log(`🗑️  Invite deleted: ${invite.code}`);
 });
 
+// Periodically refresh invite cache (every 2 minutes)
+setInterval(async () => {
+  try {
+    const guild = client.guilds.cache.get(DISCORD_GUILD_ID);
+    if (guild) {
+      const guildInvites = await guild.invites.fetch();
+      let newCount = 0;
+      guildInvites.forEach(invite => {
+        if (!invites.has(invite.code)) {
+          newCount++;
+          console.log(`🆕 Found new invite: ${invite.code}`);
+        }
+        invites.set(invite.code, invite.uses || 0);
+      });
+      if (newCount > 0) {
+        console.log(`🔄 Cache refreshed: ${newCount} new invites found`);
+      }
+    }
+  } catch (error) {
+    console.error('Error refreshing invite cache:', error.message);
+  }
+}, 120000); // Every 2 minutes
+
 // Error handling
 client.on('error', (error) => {
   console.error('❌ Discord client error:', error);
