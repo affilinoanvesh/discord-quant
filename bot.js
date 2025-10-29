@@ -44,7 +44,9 @@ client.once('ready', async () => {
       console.log(`🔗 Cached ${guildInvites.size} invites`);
     }
   } catch (error) {
-    console.error('❌ Error caching invites:', error);
+    console.warn('⚠️  Cannot fetch invites - bot needs "Manage Server" permission');
+    console.warn('   Bot will still work but cannot track which invite was used');
+    console.warn('   To fix: Server Settings → Roles → Bot Role → Enable "Manage Server"');
   }
   
   console.log('🚀 Bot is ready and listening for events!');
