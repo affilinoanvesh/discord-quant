@@ -15,7 +15,7 @@ import 'dotenv/config';
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
 const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID;
 const DISCORD_WEBHOOK_SECRET = process.env.DISCORD_WEBHOOK_SECRET;
-const API_URL = process.env.API_URL || 'https://your-domain.com';
+const API_URL = process.env.API_URL || process.env.WEBHOOK_URL || 'https://your-domain.com';
 
 // Create Discord client with required intents
 const client = new Client({
@@ -32,21 +32,34 @@ const invites = new Map();
 client.once('ready', async () => {
   console.log(`✅ Bot logged in as ${client.user.tag}`);
   console.log(`📊 Monitoring Guild ID: ${DISCORD_GUILD_ID}`);
+  console.log(`🌐 API URL: ${API_URL}`);
+  console.log(`🔐 Webhook Secret: ${DISCORD_WEBHOOK_SECRET ? 'SET' : 'NOT SET'}`);
   
   // Cache all existing invites
   try {
     const guild = client.guilds.cache.get(DISCORD_GUILD_ID);
-    if (guild) {
-      const guildInvites = await guild.invites.fetch();
-      guildInvites.forEach(invite => {
-        invites.set(invite.code, invite.uses || 0);
+    if (!guild) {
+      console.error(`❌ GUILD NOT FOUND! Bot is not in guild ${DISCORD_GUILD_ID}`);
+      console.error(`   Bot is in these guilds:`);
+      client.guilds.cache.forEach(g => {
+        console.error(`   - ${g.name} (${g.id})`);
       });
-      console.log(`🔗 Cached ${guildInvites.size} invites`);
+      return;
     }
+    
+    console.log(`✅ Found guild: ${guild.name}`);
+    
+    const guildInvites = await guild.invites.fetch();
+    guildInvites.forEach(invite => {
+      invites.set(invite.code, invite.uses || 0);
+      console.log(`   📌 ${invite.code}: ${invite.uses || 0} uses (max: ${invite.maxUses || '∞'})`);
+    });
+    console.log(`🔗 Cached ${guildInvites.size} invites`);
   } catch (error) {
     console.warn('⚠️  Cannot fetch invites - bot needs "Manage Server" permission');
     console.warn('   Bot will still work but cannot track which invite was used');
     console.warn('   To fix: Server Settings → Roles → Bot Role → Enable "Manage Server"');
+    console.error('   Error details:', error.message);
   }
   
   console.log('🚀 Bot is ready and listening for events!');
@@ -80,17 +93,20 @@ client.on('guildMemberAdd', async (member) => {
       invites.set(invite.code, invite.uses || 0);
     });
     
+    const inviteCode = usedInvite ? usedInvite.code : null;
+    
     if (!usedInvite) {
       console.log('⚠️  Could not determine which invite was used');
       console.log('   This can happen with vanity URLs or if bot wasn\'t caching invites');
-      return;
+      console.log('   Will still notify API but without invite code');
+    } else {
+      console.log(`🎫 Used invite code: ${inviteCode}`);
+      console.log(`   Created by: ${usedInvite.inviter?.tag || 'Unknown'}`);
     }
     
-    console.log(`🎫 Used invite code: ${usedInvite.code}`);
-    console.log(`   Created by: ${usedInvite.inviter?.tag || 'Unknown'}`);
-    
-    // Call the webhook to assign roles
+    // Call the webhook to assign roles (even without invite code)
     console.log(`📡 Calling API to assign roles...`);
+    console.log(`   URL: ${API_URL}/api/discord/webhook`);
     const response = await fetch(`${API_URL}/api/discord/webhook`, {
       method: 'POST',
       headers: {
@@ -101,7 +117,7 @@ client.on('guildMemberAdd', async (member) => {
         event: 'member_join',
         user_id: member.id,
         username: member.user.tag,
-        invite_code: usedInvite.code,
+        invite_code: inviteCode,
         guild_id: guild.id,
       }),
     });
