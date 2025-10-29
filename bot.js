@@ -80,17 +80,31 @@ client.on('guildMemberAdd', async (member) => {
     let usedInvite = null;
     console.log(`🔍 Comparing ${invites.size} cached invites with ${newInvites.size} current invites...`);
     
+    // First check for new invites not in cache
     for (const [code, invite] of newInvites) {
-      const oldUses = invites.get(code) || 0;
-      const currentUses = invite.uses || 0;
-      
-      console.log(`   ${code}: ${oldUses} → ${currentUses} uses`);
-      
-      if (currentUses > oldUses) {
-        usedInvite = invite;
-        console.log(`   ✅ MATCH: ${code} increased from ${oldUses} to ${currentUses}`);
-        invites.set(code, currentUses);
+      if (!invites.has(code)) {
+        console.log(`   🆕 NEW INVITE FOUND: ${code} (${invite.uses} uses, max: ${invite.maxUses || '∞'})`);
+        invites.set(code, invite.uses || 0);
+        usedInvite = invite; // This is the invite they used!
+        console.log(`   ✅ Using new invite: ${code}`);
         break;
+      }
+    }
+    
+    // If no new invite, check for usage increase on existing invites
+    if (!usedInvite) {
+      for (const [code, invite] of newInvites) {
+        const oldUses = invites.get(code) || 0;
+        const currentUses = invite.uses || 0;
+        
+        console.log(`   ${code}: ${oldUses} → ${currentUses} uses`);
+        
+        if (currentUses > oldUses) {
+          usedInvite = invite;
+          console.log(`   ✅ MATCH: ${code} increased from ${oldUses} to ${currentUses}`);
+          invites.set(code, currentUses);
+          break;
+        }
       }
     }
     
