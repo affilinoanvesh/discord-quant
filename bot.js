@@ -78,12 +78,17 @@ client.on('guildMemberAdd', async (member) => {
     
     // Find which invite was used
     let usedInvite = null;
+    console.log(`🔍 Comparing ${invites.size} cached invites with ${newInvites.size} current invites...`);
+    
     for (const [code, invite] of newInvites) {
       const oldUses = invites.get(code) || 0;
       const currentUses = invite.uses || 0;
       
+      console.log(`   ${code}: ${oldUses} → ${currentUses} uses`);
+      
       if (currentUses > oldUses) {
         usedInvite = invite;
+        console.log(`   ✅ MATCH: ${code} increased from ${oldUses} to ${currentUses}`);
         invites.set(code, currentUses);
         break;
       }
