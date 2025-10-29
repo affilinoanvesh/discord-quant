@@ -195,8 +195,8 @@ client.on('inviteDelete', async (invite) => {
   console.log(`🗑️  Invite deleted: ${invite.code}`);
 });
 
-// Periodically refresh invite cache (every 2 minutes)
-setInterval(async () => {
+// Function to refresh invite cache
+async function refreshInviteCache() {
   try {
     const guild = client.guilds.cache.get(DISCORD_GUILD_ID);
     if (guild) {
@@ -212,11 +212,42 @@ setInterval(async () => {
       if (newCount > 0) {
         console.log(`🔄 Cache refreshed: ${newCount} new invites found`);
       }
+      return { success: true, newCount };
     }
   } catch (error) {
     console.error('Error refreshing invite cache:', error.message);
+    return { success: false, error: error.message };
   }
-}, 120000); // Every 2 minutes
+}
+
+// Periodically refresh invite cache (every 5 minutes as backup)
+setInterval(refreshInviteCache, 300000);
+
+// HTTP server to trigger cache refresh
+import express from 'express';
+const app = express();
+app.use(express.json());
+
+app.post('/refresh-cache', (req, res) => {
+  const secret = req.headers['x-refresh-secret'];
+  if (secret !== process.env.REFRESH_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  console.log('🔄 Manual cache refresh triggered');
+  refreshInviteCache().then(result => {
+    res.json(result);
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', cachedInvites: invites.size });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`📡 Bot HTTP server listening on port ${PORT}`);
+});
 
 // Error handling
 client.on('error', (error) => {
